@@ -15,6 +15,19 @@ BASE_DIR = os.getcwd()
 MAX_UPLOAD_BYTES = 250 * 1024 * 1024  # 250 MB pro Request (anpassen)
 ALLOWED_EXT = set()  # optional, leer = alle Dateitypen erlauben
 
+def get_upload_owner():
+    uid = os.environ.get("SUDO_UID")
+    gid = os.environ.get("SUDO_GID")
+    if not uid or not gid:
+        return None
+
+    try:
+        return int(uid), int(gid)
+    except ValueError:
+        return None
+
+UPLOAD_OWNER = get_upload_owner()
+
 HTML_PAGE = """<!doctype html>
 <html lang="de">
 <head>
@@ -356,6 +369,36 @@ def safe_path(name: str) -> str:
 
     return os.path.join(*parts)
 
+def chown_to_upload_owner(path: str):
+    if not UPLOAD_OWNER or not hasattr(os, "chown"):
+        return
+
+    try:
+        os.chown(path, UPLOAD_OWNER[0], UPLOAD_OWNER[1])
+    except OSError:
+        pass
+
+def ensure_upload_dir(path: str):
+    os.makedirs(path, exist_ok=True)
+
+    if not UPLOAD_OWNER:
+        return
+
+    base = os.path.abspath(BASE_DIR)
+    current = base
+    target = os.path.abspath(path)
+
+    if os.path.commonpath([base, target]) != base:
+        return
+
+    rel = os.path.relpath(target, base)
+    if rel == ".":
+        return
+
+    for part in rel.split(os.sep):
+        current = os.path.join(current, part)
+        chown_to_upload_owner(current)
+
 class UploadHandler(BaseHTTPRequestHandler):
     server_version = "MiniUploadHTTP/1.1"
 
@@ -446,9 +489,10 @@ class UploadHandler(BaseHTTPRequestHandler):
             rel_saved = os.path.relpath(out_path, BASE_DIR).replace(os.sep, "/")
 
             try:
-                os.makedirs(os.path.dirname(out_path), exist_ok=True)
+                ensure_upload_dir(os.path.dirname(out_path))
                 with open(out_path, "wb") as f:
                     f.write(content)
+                chown_to_upload_owner(out_path)
                 saved.append(rel_saved)
             except Exception as e:
                 errors.append(f"{html.escape(display_name)}: Fehler beim Speichern: {html.escape(str(e))}")
