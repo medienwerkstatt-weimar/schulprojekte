@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sommerfest 2026 – Freie Waldorfschule Weimar</title>
+
+<link href="https://fonts.googleapis.com/css2?family=Amatic+SC:wght@700&family=Open+Sans:wght@300;400;600&display=swap" rel="stylesheet">
+
+<style>
+:root{
+    --waldorf-gruen:#6f8f72;
+    --waldorf-hell:#fffaf7;
+    --waldorf-beige:#f7ede2;
+    --waldorf-rosa:#f8dce6;
+    --waldorf-braun:#8d6e63;
+    --text:#4a3f45;
+}
+
+*{
+    margin:0;
+    padding:0;
+    box-sizing:border-box;
+}
+
+body{
+    font-family:'Open Sans',sans-serif;
+    color:var(--text);
+    background:var(--waldorf-hell);
+    line-height:1.7;
+}
+
+header{
+    min-height:100vh;
+    background:
+    linear-gradient(
+        rgba(248,220,230,0.45),
+        rgba(255,250,247,0.35)
+    ),
+    url('headerbild.jpg') center/cover;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    text-align:center;
+    color:#4a3f45;
+}
+
+.hero{
+    max-width:800px;
+    padding:2rem;
+}
+
+.hero h1{
+    font-family:'Amatic SC',cursive;
+    font-size:6rem;
+    line-height:1;
+}
+
+.hero h2{
+    font-weight:300;
+    margin-top:1rem;
+    letter-spacing:2px;
+}
+
+.hero .date{
+    margin-top:2rem;
+    font-size:1.4rem;
+    font-weight:600;
+}
+
+.btn{
+    display:inline-block;
+    margin-top:2rem;
+    padding:14px 28px;
+    background:var(--waldorf-gruen);
+    color:white;
+    text-decoration:none;
+    border-radius:30px;
+}
+
+section{
+    max-width:1100px;
+    margin:auto;
+    padding:5rem 1.5rem;
+}
+
+.section-title{
+    font-family:'Amatic SC',cursive;
+    font-size:4rem;
+    text-align:center;
+    color:var(--waldorf-gruen);
+    margin-bottom:2rem;
+}
+
+.intro{
+    text-align:center;
+    max-width:800px;
+    margin:auto;
+    font-size:1.1rem;
+}
+
+.info-grid{
+    display:grid;
+    grid-template-columns:repeat(auto-fit,minmax(250px,1fr));
+    gap:2rem;
+    margin-top:3rem;
+}
+
+.card{
+    background:white;
+    padding:2rem;
+    border-radius:20px;
+    box-shadow:0 8px 25px rgba(0,0,0,.08);
+}
+
+.card h3{
+    color:var(--waldorf-gruen);
+    margin-bottom:1rem;
+}
+
+.programm{
+    background:var(--waldorf-beige);
+}
+
+.timeline{
+    max-width:800px;
+    margin:auto;
+}
+
+.timeline-item{
+    background:white;
+    margin-bottom:1rem;
+    padding:1.5rem;
+    border-left:6px solid var(--waldorf-gruen);
+    border-radius:12px;
+}
+
+.gallery{
+    display:grid;
+    grid-template-columns:repeat(auto-fit,minmax(250px,1fr));
+    gap:1rem;
+}
+
+.gallery div{
+    height:250px;
+    background:var(--waldorf-rosa);
+    border-radius:15px;
+}
+
+.contact{
+    text-align:center;
+}
+
+footer{
+    background:var(--waldorf-gruen);
+    color:white;
+    text-align:center;
+    padding:2rem;
+}
+
+@media(max-width:768px){
+    .hero h1{
+        font-size:4rem;
+    }
+
+    .section-title{
+        font-size:3rem;
+    }
+}
+</style>
+
+</head>
+
+<body>
+
+<header>
+    <div class="hero">
+        <h1>Sommerfest 2026</h1>
+        <h2>Freie Waldorfschule Weimar</h2>
+
+```
+    <p class="date">
+        Samstag, 21. Juni 2026
+    </p>
+
+    <a href="#programm" class="btn">
+        Zum Programm
+    </a>
+</div>
+```
+
+</header>
+
+<section>
+    <h2 class="section-title">Herzlich Willkommen</h2>
+
+```
+<div class="intro">
+    <p>
+        Wir laden Familien, Freunde, Ehemalige und alle
+        Interessierten herzlich zu unserem Sommerfest ein.
+        Freuen Sie sich auf Begegnungen, Musik, Kunst,
+        Handwerk, kulinarische Köstlichkeiten und ein
+        buntes Miteinander auf unserem Schulgelände.
+    </p>
+</div>
+
+<div class="info-grid">
+    <div class="card">
+        <h3>Wann?</h3>
+        <p>21. Juni 2026</p>
+        <p>Beginn: 10:00 Uhr</p>
+    </div>
+
+    <div class="card">
+        <h3>Wo?</h3>
+        <p>Freie Waldorfschule Weimar</p>
+        <p>Klosterweg 8</p>
+        <p>99425 Weimar</p>
+    </div>
+
+    <div class="card">
+        <h3>Für Wen?</h3>
+        <p>Für Kinder, Familien, Freunde und Gäste unserer Schule.</p>
+    </div>
+</div>
+```
+
+</section>
+
+<section id="programm" class="programm">
+    <h2 class="section-title">Programm</h2>
+
+```
+<div class="timeline">
+
+    <div class="timeline-item">
+        <strong>10:00 Uhr</strong><br>
+        Begrüßung
+    </div>
+
+    <div class="timeline-item">
+        <strong>Weitere Programmpunkte folgen</strong><br>
+        Das vollständige Programm wird in Kürze veröffentlicht.
+    </div>
+
+</div>
+```
+
+</section>
+
+<section>
+    <h2 class="section-title">Impressionen</h2>
+
+```
+<div class="gallery">
+    <div></div>
+    <div></div>
+    <div></div>
+</div>
+```
+
+</section>
+
+<section class="contact">
+    <h2 class="section-title">Kontakt</h2>
+
+```
+<p>
+    Freie Waldorfschule Weimar<br>
+    Klosterweg 8 · 99425 Weimar
+</p>
+
+<p style="margin-top:1rem;">
+    E-Mail: sommerfest@waldorf-weimar.de
+</p>
+```
+
+</section>
+
+<footer>
+    © 2026 Sommerfest der Freien Waldorfschule Weimar
+</footer>
+
+</body>
+</html>
