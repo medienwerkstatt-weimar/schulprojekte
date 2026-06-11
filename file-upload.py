@@ -4,18 +4,16 @@
 import os
 import re
 import sys
-import time
 import html
 import uuid
 import socket
 from http.server import BaseHTTPRequestHandler, HTTPServer
 
-# Speichert per Default relativ zum Ordner, aus dem du das Skript startest
+# Speichert relativ zum Ordner, aus dem du das Skript startest
 BASE_DIR = os.getcwd()
-UPLOAD_DIR = os.path.join(BASE_DIR, "uploads")
 
 MAX_UPLOAD_BYTES = 250 * 1024 * 1024  # 250 MB pro Request (anpassen)
-ALLOWED_EXT = {".jpg", ".jpeg", ".png", ".gif", ".webp", ".heic", ".heif"}  # optional
+ALLOWED_EXT = set()  # optional, leer = alle Dateitypen erlauben
 
 HTML_PAGE = """<!doctype html>
 <html lang="de">
@@ -174,12 +172,13 @@ HTML_PAGE = """<!doctype html>
     <div class="card">
       <h1>📷 Upload auf den Laptop</h1>
       <p class="muted">
-        Wähle Dateien aus und lade sie ins WLAN hoch. Mehrere Dateien sind möglich.
+        Wähle Dateien oder ganze Ordner aus und lade sie ins WLAN hoch.
       </p>
 
       <div class="row">
         <div class="file">
-          <input id="file" type="file" name="file" accept="image/*" multiple />
+          <input id="file" type="file" name="file" multiple aria-label="Dateien auswaehlen" />
+          <input id="folder" type="file" name="file" multiple webkitdirectory directory aria-label="Ordner auswaehlen" />
         </div>
         <button id="uploadBtn" class="btn">⬆️ Hochladen</button>
       </div>
@@ -196,7 +195,7 @@ HTML_PAGE = """<!doctype html>
       </div>
 
       <div style="margin-top:14px">
-        <span class="pill">Speichert nach: <code>{upload_dir}</code></span>
+        <span class="pill">Speichert nach: <code>{base_dir}</code></span>
       </div>
     </div>
   </div>
@@ -204,6 +203,7 @@ HTML_PAGE = """<!doctype html>
 <script>
 (() => {{
   const fileEl = document.getElementById("file");
+  const folderEl = document.getElementById("folder");
   const btn = document.getElementById("uploadBtn");
   const box = document.getElementById("progressBox");
   const fill = document.getElementById("barFill");
@@ -235,20 +235,25 @@ HTML_PAGE = """<!doctype html>
   }};
 
   btn.addEventListener("click", () => {{
-    const files = fileEl.files;
-    if (!files || files.length === 0) {{
+    const files = [
+      ...Array.from(fileEl.files || []),
+      ...Array.from(folderEl.files || [])
+    ];
+
+    if (files.length === 0) {{
       alert("Bitte mindestens eine Datei auswählen.");
       return;
     }}
 
     const fd = new FormData();
-    for (const f of files) fd.append("file", f);
+    for (const f of files) fd.append("file", f, f.webkitRelativePath || f.name);
 
     const xhr = new XMLHttpRequest();
     xhr.open("POST", "/upload", true);
 
     btn.disabled = true;
     fileEl.disabled = true;
+    folderEl.disabled = true;
     box.style.display = "block";
     logEl.textContent = "";
 
@@ -256,7 +261,7 @@ HTML_PAGE = """<!doctype html>
     let lastT = start;
     let lastLoaded = 0;
 
-    const totalBytes = Array.from(files).reduce((a,f)=>a+f.size,0);
+    const totalBytes = files.reduce((a,f)=>a+f.size,0);
     totalEl.textContent = fmtBytes(totalBytes);
 
     xhr.upload.onprogress = (e) => {{
@@ -290,6 +295,7 @@ HTML_PAGE = """<!doctype html>
       if (xhr.readyState === 4) {{
         btn.disabled = false;
         fileEl.disabled = false;
+        folderEl.disabled = false;
 
         if (xhr.status >= 200 && xhr.status < 300) {{
           // Server liefert HTML Ergebnis -> zeigen wir direkt an
@@ -309,6 +315,7 @@ HTML_PAGE = """<!doctype html>
     xhr.onerror = () => {{
       btn.disabled = false;
       fileEl.disabled = false;
+      folderEl.disabled = false;
       logEl.textContent = "Netzwerkfehler (XHR).";
     }};
 
@@ -331,10 +338,23 @@ def get_local_ip():
     finally:
         s.close()
 
-def safe_filename(name: str) -> str:
-    name = os.path.basename(name).strip().replace("\x00", "")
-    name = re.sub(r"[^A-Za-z0-9._ -]", "_", name)
-    return name or f"upload_{uuid.uuid4().hex}"
+def safe_path(name: str) -> str:
+    name = name.replace("\x00", "").replace("\\", "/")
+    parts = []
+
+    for raw_part in name.split("/"):
+        part = raw_part.strip(" ")
+        if not part or part in (".", ".."):
+            continue
+        part = "".join("_" if ch in '<>:"|?*' or ord(ch) < 32 else ch for ch in part)
+        part = part.rstrip(". ")
+        if part:
+            parts.append(part)
+
+    if not parts:
+        parts.append(f"upload_{uuid.uuid4().hex}")
+
+    return os.path.join(*parts)
 
 class UploadHandler(BaseHTTPRequestHandler):
     server_version = "MiniUploadHTTP/1.1"
@@ -350,8 +370,7 @@ class UploadHandler(BaseHTTPRequestHandler):
 
     def do_GET(self):
         if self.path in ("/", "/index.html"):
-            os.makedirs(UPLOAD_DIR, exist_ok=True)
-            page = HTML_PAGE.format(upload_dir=html.escape(UPLOAD_DIR))
+            page = HTML_PAGE.format(base_dir=html.escape(BASE_DIR))
             return self._send(200, page)
 
         if self.path == "/health":
@@ -390,8 +409,6 @@ class UploadHandler(BaseHTTPRequestHandler):
         delim = b"--" + boundary
         parts = body.split(delim)
 
-        os.makedirs(UPLOAD_DIR, exist_ok=True)
-
         for part in parts:
             part = part.strip()
             if not part or part in (b"--", b"--\r\n"):
@@ -412,24 +429,29 @@ class UploadHandler(BaseHTTPRequestHandler):
             if not filename_m:
                 continue
 
-            filename = safe_filename(filename_m.group(1))
+            upload_path = safe_path(filename_m.group(1))
+            display_name = upload_path.replace(os.sep, "/")
+            filename = os.path.basename(upload_path)
             ext = os.path.splitext(filename)[1].lower()
 
             if ALLOWED_EXT and ext and ext not in ALLOWED_EXT:
-                errors.append(f"{html.escape(filename)}: Dateityp nicht erlaubt ({html.escape(ext)}).")
+                errors.append(f"{html.escape(display_name)}: Dateityp nicht erlaubt ({html.escape(ext)}).")
                 continue
 
-            ts = time.strftime("%Y%m%d-%H%M%S")
-            unique = uuid.uuid4().hex[:8]
-            out_name = f"{ts}_{unique}_{filename}"
-            out_path = os.path.join(UPLOAD_DIR, out_name)
+            out_path = os.path.abspath(os.path.join(BASE_DIR, upload_path))
+            if os.path.commonpath([BASE_DIR, out_path]) != BASE_DIR:
+                errors.append(f"{html.escape(display_name)}: Ungueltiger Pfad.")
+                continue
+
+            rel_saved = os.path.relpath(out_path, BASE_DIR).replace(os.sep, "/")
 
             try:
+                os.makedirs(os.path.dirname(out_path), exist_ok=True)
                 with open(out_path, "wb") as f:
                     f.write(content)
-                saved.append(out_name)
+                saved.append(rel_saved)
             except Exception as e:
-                errors.append(f"{html.escape(filename)}: Fehler beim Speichern: {html.escape(str(e))}")
+                errors.append(f"{html.escape(display_name)}: Fehler beim Speichern: {html.escape(str(e))}")
 
         items = "".join(f"<li style='color:#2ee59d'>{html.escape(n)}</li>" for n in saved) or "<li>—</li>"
         errs = "".join(f"<li style='color:#ff5577'>{e}</li>" for e in errors)
@@ -444,7 +466,7 @@ class UploadHandler(BaseHTTPRequestHandler):
     <h3 style="margin:12px 0 6px">Gespeichert</h3>
     <ul style="margin:0 0 12px; padding-left:18px">{items}</ul>
     {("<h3 style='margin:12px 0 6px'>Probleme</h3><ul style='margin:0; padding-left:18px'>"+errs+"</ul>") if errs else ""}
-    <p style="margin-top:14px;color:rgba(255,255,255,.65)">Ordner: <code>{html.escape(UPLOAD_DIR)}</code></p>
+    <p style="margin-top:14px;color:rgba(255,255,255,.65)">Ordner: <code>{html.escape(BASE_DIR)}</code></p>
   </div>
 </body></html>"""
 
@@ -463,15 +485,13 @@ def main():
     if len(sys.argv) >= 2:
         port = int(sys.argv[1])
 
-    os.makedirs(UPLOAD_DIR, exist_ok=True)
-
     httpd = HTTPServer((host, port), UploadHandler)
     local_ip = get_local_ip()
 
     print("Server läuft.")
     print(f"Auf dem Laptop:           http://127.0.0.1:{port}/")
     print(f"Im WLAN vom Smartphone:   http://{local_ip}:{port}/")
-    print(f"Speicherort:              {UPLOAD_DIR}")
+    print(f"Speicherort:              {BASE_DIR}")
     print("Beenden mit Ctrl+C")
 
     try:
